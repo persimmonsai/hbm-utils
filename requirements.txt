@@ -1,0 +1,2 @@
+git+https://gitlab.com/kicad/libraries/kicad-footprint-generator.git
+absl-py

@@ -2,25 +2,34 @@ import absl
 import re
 from enum import Enum
 
+from KicadModTree import *
 
 class PinEncoding(object):
 
-    def __init__(self: object):
+    def __init__(self):
         pass
 
 class BijectivePinEncoding(PinEncoding):
 
-    def __init__(self: object, alphabet: str):
+    _min: str
+    _max: str
+
+    def __init__(self, alphabet: str, min: str, max: str):
         super.__init_subclass__()
         value: int = 1
         self.ordinals = dict()
         self.alphabet = alphabet
+        self._min = min
+        self._max = max
 
         for c in alphabet:
             self.ordinals[c] = value
             value += 1
+        
+        assert self.decode(self._max) >= self.decode(self._min)
 
-    def encode(self: object, num: int) -> str:
+
+    def encode(self, num: int) -> str:
         """
         Converts any positive integer to base20(letters only) with no 0th case.
 
@@ -41,7 +50,7 @@ class BijectivePinEncoding(PinEncoding):
         
         return result
 
-    def decode(self: object, num: str) -> int:
+    def decode(self, num: str) -> int:
         """
         Converts an upper case string to an integer representation
          
@@ -60,19 +69,38 @@ class BijectivePinEncoding(PinEncoding):
             num = num[0:-1]
             multiplier *= len(self.alphabet)
             
-        return result     
+        return result
+
+    def min(self) -> str:
+        return self._min
+    
+    def max(self) -> str:
+        return self._max
+ 
 
 # Identity class for linear values
 class LinearPinEncoding(PinEncoding):
 
-    def __init__(self):
+    _min: int
+    _max: int
+
+    def __init__(self, min: int, max: int):
         super.__init_subclass__()
+        assert max > min
+        self._min = min
+        self._max = max
 
     def encode(self, num: int) -> int:
         return num
     
     def decode(self, num: int) -> int:
         return num
+    
+    def min(self) -> int:
+        return self._min
+    
+    def max(self) -> int:
+        return self._max
 
 class BumpType(Enum):
     UNDEFINED = 1,
@@ -88,7 +116,7 @@ class Bump(object):
     
     __type: BumpType
 
-    def __init__(self: object, name : str, net : str):
+    def __init__(self, name : str, net : str):
         self.__name = name
         self.__net = net
         self.__type = BumpType.UNDEFINED
@@ -111,12 +139,52 @@ class Bump(object):
 
     @property 
     def type(self) -> BumpType:
+        print(self.__type)
         return self.__type
     
     @type.setter
     def type(self, value: BumpType):
         self.__type = value
 
+
+class Location(object):
+
+    rows: str
+    cols: str
+
+    def __init__(self):
+        pass
+
+class HBMLocation(Location):
+
+    # Units are microns ( .0000001 meters )
+     
+    col_pitch: float = 96.0/2.0
+    row_pitch: float = 110.0/2.0
+
+    row_count: int 
+    col_count: int
+
+    center_col_offset: float
+    center_row_offset: float
+
+    row_enc: PinEncoding
+    col_enc: PinEncoding
+        
+    def __init__(self, row_enc: PinEncoding, col_enc: PinEncoding):
+        self.row_enc = row_enc
+        self.col_enc = col_enc
+        self.row_count = row_enc.decode(row_enc.max()) - row_enc.decode(row_enc.min()) + 1
+        self.col_count = col_enc.decode(col_enc.max()) - col_enc.decode(col_enc.min()) + 1
+
+        # Calculate centroid position
+        self.center_row_offset = (self.row_count - 1) * self.row_pitch / 2.0
+        self.center_col_offset = (self.col_count - 1) * self.col_pitch / 2.0
+
+    def to_phys_location(self, row: str, col: int) -> (float, float):
+        row_loc = (self.row_enc.decode(row) - self.row_enc.decode(self.row_enc.min())) * self.row_pitch
+        col_loc = (self.col_enc.decode(col) - self.col_enc.decode(self.col_enc.min())) * self.col_pitch
+        return (row_loc, col_loc)
 class Die(object):
 
     name: str
@@ -126,21 +194,24 @@ class Die(object):
 
     PE: PinEncoding
 
-    def __init__(self: object, name: str, PE: PinEncoding, rows: list[str | int], cols: list[str | int]):
+    _location: HBMLocation
+
+    def __init__(self, name: str, PE: PinEncoding, rows: list[str | int], cols: list[str | int], location: Location):
         self.name = name
         self.rows = rows
         self.cols = cols
         self.bump_map = dict()
         self.PE = PE
-        print(rows)
+        self._location = location
 
         for y in rows:
             self.bump_map[y] = dict()
             for x in cols:
                 name = f"{y}{x}"
                 self.bump_map[y][x] = Bump(name, None)
+                self.bump_map[y][x].type = BumpType.DEPOPULATED
 
-    def ApplyChannel(self: object, instance: str, row: str, col: int, reverse: bool = False):
+    def ApplyChannel(self, instance: str, row: str, col: int, reverse: bool = False):
 
         channel_pattern = [   
             [None,'DQ[7]', None,'DQ[5]', None, 'RD[0]', None,    'DQ[3]', None,    'DQ[1]', None, 'ECC[0]' ],
@@ -184,35 +255,55 @@ class Die(object):
             c = col
             for pin in row_list:
                 if pin:
-                    self.bump_map[row][c] = pin
-                    print(f"{row} {c} {pin}")
+                    self.bump_map[row][c] = Bump(f"{row}{c}", f"{pin}_{instance}" )
                 c += 1
 
             row = PE.encode(PE.decode(row) + 1)
 
-class Location(object):
+    def GenerateFootprint(self, name: str = "HBM3") -> object:
+        kicad_mod = Footprint(name, FootprintType.THT)
 
-    rows: str
-    cols: str
+        kicad_mod.setDescription("HBM3 footprint")
 
-    def __init__(self: object):
-        pass
-    
+        # set general values
+        kicad_mod.append(Text(type='reference', text='REF**', at=[-4, -3], layer='F.SilkS'))
+        kicad_mod.append(Text(type='value', text=name, at=[4, -3], layer='F.Fab'))
+
+        for row in self.rows:
+            for col in self.cols:
+                print(f"{row}{col} {self.bump_map[row][col]}")
+                if self.bump_map[row][col].type == BumpType.DEPOPULATED:
+                    continue
+
+                pad_name = f"{row}{col}"
+                
+                # KiCad location is in mm, not microns
+                location: tuple[float] = [ x / 1000.0 for x in self._location.to_phys_location(row,col)]
+                kicad_mod.append(Pad(number=pad_name, type=Pad.TYPE_SMT, shape=Pad.SHAPE_CIRCLE,
+                        at=[ location[1], location[0] ] , size=0.04, layers=Pad.LAYERS_SMT))
+
+        return kicad_mod
+
+
+
 if __name__ == "__main__":
 
     # JESD238A 
     # Rows = [A,HA]
     # Cols = [1,148]
 
-    PE = BijectivePinEncoding(alphabet='ABCDEFGHJKLMNPRTUVWY')
+    PE = BijectivePinEncoding(alphabet='ABCDEFGHJKLMNPRTUVWY', min='A', max='HA')
 
     N_COLS = (148-1) + 1
     N_ROWS = (PE.decode('HA'))
 
+    l = HBMLocation(PE, LinearPinEncoding(min=1,max=148))
+
     HBM = Die(name = "HBM3 JESD238A",
               PE = PE, 
               rows = [PE.encode(x) for x in range(1,PE.decode('HA')+1) ],
-              cols = range(1,149)
+              cols = range(1,149),
+              location = l
               )
 
     # Mechanical bumps
@@ -263,8 +354,8 @@ if __name__ == "__main__":
     set_vss += [HBM.bump_map[y][x] for y in ['CD', 'CF'] for x in [40,46]]
     set_vss += [HBM.bump_map[y][x] for y in ['CC', 'CE'] for x in [41,47]]
 
-    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('CL'),PE.decode('DL')+1) for x in [43,49]]
-    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('CM'),PE.decode('DK')+1) for x in [44,50]]
+    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('CL'),PE.decode('DL')+1, 2) for x in [43,49]]
+    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('CM'),PE.decode('DK')+1, 2) for x in [44,50]]
 
     set_vss += [HBM.bump_map[y][x] for y in ['DT', 'DV'] for x in [40,46]]
     set_vss += [HBM.bump_map[y][x] for y in ['DU', 'DW'] for x in [41,47]]
@@ -278,22 +369,22 @@ if __name__ == "__main__":
     set_vss += [HBM.bump_map[y][x] for y in ['FA', 'FC'] for x in [43,49]]
     set_vss += [HBM.bump_map[y][x] for y in ['EY', 'FB'] for x in [44,50]] 
 
-    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('FU'),PE.decode('HA')+1) for x in [43,49]]
-    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('FT'),PE.decode('GY')+1) for x in [44,50]]
+    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('FU'),PE.decode('HA')+1,2) for x in [43,49]]
+    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('FT'),PE.decode('GY')+1,2) for x in [44,50]]
  
-    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('A'),PE.decode('CR')+1) for x in [55,61,67,73,79]]
-    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('B'),PE.decode('CT')+1) for x in [56,62,68,74,80]]
+    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('A'),PE.decode('CR')+1,2) for x in [55,61,67,73,79]]
+    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('B'),PE.decode('CT')+1,2) for x in [56,62,68,74,80]]
    
-    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('DG'),PE.decode('HA')+1) for x in [55,61,67,73,79]]
-    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('DF'),PE.decode('GY')+1) for x in [56,62,68,74,80]]
+    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('DG'),PE.decode('HA')+1,2) for x in [55,61,67,73,79]]
+    set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('DF'),PE.decode('GY')+1,2) for x in [56,62,68,74,80]]
 
     set_vss += [HBM.bump_map[y][x] for y in ['A','C','E','L','N','W','AE','AG','AL','AN',
                                              'AW', 'BE', 'BG', 'BN', 'BW', 'CA', 'CE', 'CG',
-                                             'CN', 'DJ', 'DK', 'DU', 'EA', 'EC', 'EJ', 'ER',
+                                             'CN', 'DJ', 'DL', 'DU', 'EA', 'EC', 'EJ', 'ER',
                                              'EU', 'FC', 'FJ', 'FL', 'FR', 'FU', 'GC', 'GJ',
                                              'GL', 'GU', 'GW', 'HA'] for x in [85]]
                                             
-    set_vss += [HBM.bump_map[y][x] for y in ['B', 'D', 'E', 'M', 'V', 'Y', 'AF',
+    set_vss += [HBM.bump_map[y][x] for y in ['B', 'D', 'F', 'M', 'V', 'Y', 'AF',
                                              'AM', 'AV', 'AY', 'BF', 'BM', 'BP', 
                                              'BY', 'CF', 'CM', 'CP', 'DH', 'DK',
                                              'DT', 'EB', 'EH', 'EK', 'ET', 'FB',
@@ -385,3 +476,10 @@ if __name__ == "__main__":
     HBM.ApplyChannel("l", "EW", 107, reverse=True)
     HBM.ApplyChannel("h", "EW", 121, reverse=True)
     HBM.ApplyChannel("c", "EW", 135, reverse=True)
+
+    print(l.to_phys_location('AA', 1))
+
+    footprint = HBM.GenerateFootprint() 
+    # output kicad model
+    file_handler = KicadFileHandler(footprint)
+    file_handler.writeFile('example_footprint.kicad_mod')
