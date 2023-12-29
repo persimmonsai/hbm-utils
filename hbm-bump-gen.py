@@ -3,6 +3,7 @@
 
 import absl
 import re
+from copy import deepcopy
 from enum import Enum
 
 from KicadModTree import *
@@ -187,6 +188,7 @@ class HBMLocation(Location):
         row_loc = (self.row_enc.decode(row) - self.row_enc.decode(self.row_enc.min())) * self.row_pitch
         col_loc = (self.col_enc.decode(col) - self.col_enc.decode(self.col_enc.min())) * self.col_pitch
         return (row_loc, col_loc)
+    
 class Die(object):
 
     name: str
@@ -198,6 +200,8 @@ class Die(object):
 
     _location: HBMLocation
 
+    _channel_pattern: list[list[ str | None]]
+
     def __init__(self, name: str, PE: PinEncoding, rows: list[str | int], cols: list[str | int], location: Location):
         self.name = name
         self.rows = rows
@@ -205,17 +209,7 @@ class Die(object):
         self.bump_map = dict()
         self.PE = PE
         self._location = location
-
-        for y in rows:
-            self.bump_map[y] = dict()
-            for x in cols:
-                name = f"{y}{x}"
-                self.bump_map[y][x] = Bump(name, None)
-                self.bump_map[y][x].type = BumpType.DEPOPULATED
-
-    def ApplyChannel(self, instance: str, row: str, col: int, reverse: bool = False):
-
-        channel_pattern = [   
+        self._channel_pattern = [   
             [None,'DQ[7]', None,'DQ[5]', None, 'RD[0]', None,    'DQ[3]', None,    'DQ[1]', None, 'ECC[0]' ],
             ['DBI[0]', None,'DQ[6]', None, 'DQ[4]', None,  'DPAR[0]', None,   'DQ[2]', None,   'DQ[0]', None   ],
             [],
@@ -249,6 +243,18 @@ class Die(object):
             [None, 'DQ[63]', None, 'DQ[61]', None, 'RD[3]', None, 'DQ[59]', None, 'DQ[57]', None, 'SEV[3]'],
             ['DBI[7]', None, 'DQ[62]', None, 'DQ[60]', None, 'DERR[1]', None, 'DQ[58]', None, 'DQ[56]', None]
         ]
+
+
+        for y in rows:
+            self.bump_map[y] = dict()
+            for x in cols:
+                name = f"{y}{x}"
+                self.bump_map[y][x] = Bump(name, None)
+                self.bump_map[y][x].type = BumpType.DEPOPULATED
+
+    def ApplyChannel(self, instance: str, row: str, col: int, reverse: bool = False):
+
+        channel_pattern = deepcopy(self._channel_pattern)
 
         if reverse:
             channel_pattern.reverse()
@@ -284,6 +290,41 @@ class Die(object):
                         at=[ location[1], location[0] ] , size=0.04, layers=Pad.LAYERS_SMT))
 
         return kicad_mod
+
+
+    def GenerateSymbol(self) -> list[str]:
+        """
+        Generate a kipart style table of pins in csv 
+
+        
+        
+        required column headers
+        Pin, Unit, Type, Name
+
+        Type -> (input,output,bidirectional,tristate,power_in,...)
+
+        optional column headers
+        Side (top,bottom,left,right)
+        Style
+        """
+        
+        output: list[str] = list()
+
+        output.append("HBM")
+        output.append("")
+        output.append("Pin, Unit, Type, Name, Side")
+
+        for channel in ['a', 'b', 'c', 'd', 
+                        'e', 'f', 'g', 'h',
+                        'i', 'j', 'k', 'l',
+                        'm', 'n', 'o', 'p' ]:
+            for pin in self._channel_pattern:
+                print(pin)
+
+
+        return output
+        
+
 
 
 
@@ -504,3 +545,5 @@ if __name__ == "__main__":
     # output kicad model
     file_handler = KicadFileHandler(footprint)
     file_handler.writeFile('hbm3_footprint.kicad_mod')
+
+    print(HBM.GenerateSymbol())
