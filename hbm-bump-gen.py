@@ -1,3 +1,6 @@
+# Copyright: 2023 Persimmons, Inc
+# Author: Eugene Feinberg
+
 import absl
 import re
 from enum import Enum
@@ -139,7 +142,6 @@ class Bump(object):
 
     @property 
     def type(self) -> BumpType:
-        print(self.__type)
         return self.__type
     
     @type.setter
@@ -266,12 +268,11 @@ class Die(object):
         kicad_mod.setDescription("HBM3 footprint")
 
         # set general values
-        kicad_mod.append(Text(type='reference', text='REF**', at=[-4, -3], layer='F.SilkS'))
-        kicad_mod.append(Text(type='value', text=name, at=[4, -3], layer='F.Fab'))
+        kicad_mod.append(Text(type='reference', text='REF**', at=[0, -3], layer='F.SilkS'))
+        kicad_mod.append(Text(type='value', text=name, at=[0, 10], layer='F.Fab'))
 
         for row in self.rows:
             for col in self.cols:
-                print(f"{row}{col} {self.bump_map[row][col]}")
                 if self.bump_map[row][col].type == BumpType.DEPOPULATED:
                     continue
 
@@ -369,6 +370,9 @@ if __name__ == "__main__":
     set_vss += [HBM.bump_map[y][x] for y in ['FA', 'FC'] for x in [43,49]]
     set_vss += [HBM.bump_map[y][x] for y in ['EY', 'FB'] for x in [44,50]] 
 
+    set_vss += [HBM.bump_map[y][x] for y in ['FH', 'FK'] for x in [40,46]]
+    set_vss += [HBM.bump_map[y][x] for y in ['FJ', 'FL'] for x in [41,47]]
+
     set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('FU'),PE.decode('HA')+1,2) for x in [43,49]]
     set_vss += [HBM.bump_map[PE.encode(y)][x] for y in range(PE.decode('FT'),PE.decode('GY')+1,2) for x in [44,50]]
  
@@ -380,7 +384,7 @@ if __name__ == "__main__":
 
     set_vss += [HBM.bump_map[y][x] for y in ['A','C','E','L','N','W','AE','AG','AL','AN',
                                              'AW', 'BE', 'BG', 'BN', 'BW', 'CA', 'CE', 'CG',
-                                             'CN', 'DJ', 'DL', 'DU', 'EA', 'EC', 'EJ', 'ER',
+                                             'CN', 'DJ', 'DR', 'DU', 'EA', 'EC', 'EJ', 'ER',
                                              'EU', 'FC', 'FJ', 'FL', 'FR', 'FU', 'GC', 'GJ',
                                              'GL', 'GU', 'GW', 'HA'] for x in [85]]
                                             
@@ -394,6 +398,10 @@ if __name__ == "__main__":
     
     set_vss += [HBM.bump_map[y][x] for y in ['A', 'C', 'E', 'GU', 'GW', 'HA'] for x in [91, 97, 103, 109, 115, 121, 127, 133, 139, 145]]
     set_vss += [HBM.bump_map[y][x] for y in ['B', 'D', 'F', 'GT', 'GV', 'GY'] for x in [92, 98, 104, 110, 116, 122, 128, 134, 140, 146]]
+
+    set_vss += [HBM.bump_map[y][x] for y in ['L', 'AE', 'AL', 'BE', 'BW', 'CE', 'CW', 'DC', 'DU', 'EC', 'EU', 'FL', 'FU', 'GL'] for x in range(91,145+1,2)]
+    set_vss += [HBM.bump_map[y][x] for y in ['V', 'AV', 'BM', 'CM', 'DK', 'EK', 'FD', 'GD'] for x in range(92,146+1,2)]
+
 
     for vss in set_vss:
         vss.type = BumpType.SUPPLY
@@ -457,6 +465,21 @@ if __name__ == "__main__":
         vddc.type = BumpType.SUPPLY
         vddc.net  = 'VDDC'
 
+
+    set_vddq =  [HBM.bump_map[y][x] for y in ['K', 'AD', 'AK', 'BD', 'BV', 'CD', 'CV', 'DD', 'DV', 'ED', 'EV', 'FM', 'FV', 'GM'] for x in range(92,146+1,2)]
+    set_vddq += [HBM.bump_map[y][x] for y in ['U', 'AU', 'BL', 'CL', 'DA', 'DL', 'EL', 'FE', 'GE'] for x in range(91,145+1,2)]
+
+    for vddq in set_vddq:
+        vddq.type = BumpType.SUPPLY
+        vddq.net  = 'VDDQ'
+
+    set_vddql =  [HBM.bump_map[y][x] for y in ['H', 'P', 'AP', 'BH', 'CH', 'DP', 'EP', 'FH', 'GH', 'GP'] for x in range(92,146+1,2)]
+    set_vddql += [HBM.bump_map[y][x] for y in ['AA', 'BA', 'BR', 'CR', 'DG', 'EG', 'FA', 'GA'] for x in range(91,145+1,2)]
+
+    for vddql in set_vddql:
+        vddql.type = BumpType.SUPPLY
+        vddql.net  = 'VDDQL'
+
     HBM.ApplyChannel("m", "M", 93)
     HBM.ApplyChannel("i", "M", 107)
     HBM.ApplyChannel("e", "M", 121)
@@ -477,9 +500,7 @@ if __name__ == "__main__":
     HBM.ApplyChannel("h", "EW", 121, reverse=True)
     HBM.ApplyChannel("c", "EW", 135, reverse=True)
 
-    print(l.to_phys_location('AA', 1))
-
     footprint = HBM.GenerateFootprint() 
     # output kicad model
     file_handler = KicadFileHandler(footprint)
-    file_handler.writeFile('example_footprint.kicad_mod')
+    file_handler.writeFile('hbm3_footprint.kicad_mod')
