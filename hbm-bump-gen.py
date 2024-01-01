@@ -3,6 +3,8 @@
 
 import absl
 import re
+import subprocess
+import tempfile
 from copy import deepcopy
 from enum import Enum
 
@@ -305,8 +307,6 @@ class Die(object):
         """
         Generate a kipart style table of pins in csv 
 
-        
-        
         required column headers
         Pin, Unit, Type, Name
 
@@ -319,7 +319,7 @@ class Die(object):
         
         output: list[str] = list()
 
-        output.append("HBM")
+        output.append("HBM3")
         output.append("")
         output.append("Pin, Unit, Type, Name, Side")
 
@@ -327,15 +327,38 @@ class Die(object):
                         'e', 'f', 'g', 'h',
                         'i', 'j', 'k', 'l',
                         'm', 'n', 'o', 'p' ]:
-            for pin in self._channel_pattern:
-                print(pin)
+            for row in self._channel_pattern:
+                for col in row:
+                    if col:
+                        for bump in self.NetToBumps(f"{col}_{channel}"):
+                            direction = "input"
+                            side = "left"
+                            if re.search("DQ|RD\[|DBI|SEV|DPAR|ECC", col):
+                                side = "right"
+                                direction = "bidirectional"
+                            if re.search("DERR|AERR|RDQS", col):
+                                side = "right"
+                                direction = "output"
+                            if re.search("WDQS|^RA", col):
+                                side = "left"
+                                direction = "input"
 
+                            output.append(f"{bump}, {channel}, {direction}, {col}_{channel}, {side}" )
+
+        for vss in self.NetToBumps(f"VSS"):
+            output.append(f"{vss}, VSS, power_in, VSS, left")
+
+        for vddc in self.NetToBumps(f"VDDC"):
+            output.append(f"{vddc}, VDDC, power_in, VDDC, left")
+
+        for vddq in self.NetToBumps(f"VDDQ"):
+            output.append(f"{vddq}, VDDQ, power_in, VQQD, left" )
+
+        for vddql in self.NetToBumps(f"VDDQL"):
+            output.append(f"{vddql}, VDDQL, power_in, VQQDL, left" )
 
         return output
         
-
-
-
 
 if __name__ == "__main__":
 
@@ -548,11 +571,20 @@ if __name__ == "__main__":
     HBM.ApplyChannel("p", "EW", 93, reverse=True)
     HBM.ApplyChannel("l", "EW", 107, reverse=True)
     HBM.ApplyChannel("h", "EW", 121, reverse=True)
-    HBM.ApplyChannel("c", "EW", 135, reverse=True)
+    HBM.ApplyChannel("d", "EW", 135, reverse=True)
 
     footprint = HBM.GenerateFootprint() 
     # output kicad model
     file_handler = KicadFileHandler(footprint)
     file_handler.writeFile('hbm3_footprint.kicad_mod')
 
-    print(HBM.GenerateSymbol())
+    symbol_csv = "\n".join(HBM.GenerateSymbol())
+
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".csv") as tf:
+        tf.write(symbol_csv)
+        tf.flush()
+        subprocess.run( args=['kipart', '--overwrite', '--sort', 'name', '--center', '-b', tf.name, '-o', 'hbm3_symbol.kicad_sym'],
+                        input=symbol_csv.encode()
+        )
+
+
