@@ -251,6 +251,16 @@ class Die(object):
                 self.bump_map[y][x] = Bump(name, None)
                 self.bump_map[y][x].type = BumpType.DEPOPULATED
 
+    def NetToBumps(self, net: str) -> list[str]:
+        bumps: list[str] = list()
+
+        for r in self.bump_map:
+            for c in self.bump_map[r]:
+                if self.bump_map[r][c].net == net:
+                    bumps.append(self.bump_map[r][c].name)
+
+        return bumps
+
     def ApplyChannel(self, instance: str, row: str, col: int, reverse: bool = False):
 
         channel_pattern = deepcopy(self._channel_pattern)
