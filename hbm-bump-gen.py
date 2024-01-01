@@ -218,7 +218,7 @@ class Die(object):
             [],
             [],
             ['DBI[2]', None, 'DQ[22]', None, 'DQ[20]', None, 'RDQS[0]_t', None, 'DQ[18]', None, 'DQ[16]', None],
-            [None, 'DQ[23]', None, 'DQ[21]', None, 'RDWS[0]_c', None, 'DQ[19]', None, 'DQ[17]', None, 'SEV[0]'],
+            [None, 'DQ[23]', None, 'DQ[21]', None, 'RDQS[0]_c', None, 'DQ[19]', None, 'DQ[17]', None, 'SEV[0]'],
             [],
             [None, 'DQ[31]', None, 'DQ[29]', None, 'RD[1]', None, 'DQ[27]', None, 'DQ[25]', None, 'SEV[1]'],
             ['DBI[3]', None, 'DQ[30]', None, 'DQ[28]', None, 'DERR[0]', None, 'DQ[26]', None, 'DQ[24]', None],
@@ -233,17 +233,16 @@ class Die(object):
             [None, 'DQ[39]', None, 'DQ[37]', None, 'RD[2]', None, 'DQ[35]', None, 'DQ[33]', None, 'ECC[2]'],
             ['DBI[4]', None, 'DQ[38]', None, 'DQ[36]', None, 'DPAR[1]', None, 'DQ[34]', None, 'DQ[32]', None],
             [],
-            ['DBI[5]', None, 'DQ[46]', None, 'DQ[44]', None, 'WDQSel_t', None, 'DQ[42]', None, 'DQ[40]', None],
-            [None, 'DQ[47]', None, 'DQ[45]', None, 'WDQSel_c', None, 'DQ[43]', None, 'DQ[41]', None, 'ECC[3]'],
+            ['DBI[5]', None, 'DQ[46]', None, 'DQ[44]', None, 'WDQS[1]_t', None, 'DQ[42]', None, 'DQ[40]', None],
+            [None, 'DQ[47]', None, 'DQ[45]', None, 'WDQS[1]_c', None, 'DQ[43]', None, 'DQ[41]', None, 'ECC[3]'],
             [],
             [],
-            ['DBI[6]', None, 'DQ[54]', None, 'DQ[52]', None, 'RDQSel_t', None, 'DQ[50]', None, 'DQ[48]', None],
-            [None, 'DQ[55]', None, 'DQ[53]', None, 'RDQSel_c', None, 'DQ[51]', None, 'DQ[49]', None, 'SEV[2]'],
+            ['DBI[6]', None, 'DQ[54]', None, 'DQ[52]', None, 'RDQS[1]_t', None, 'DQ[50]', None, 'DQ[48]', None],
+            [None, 'DQ[55]', None, 'DQ[53]', None, 'RDQS[1]_c', None, 'DQ[51]', None, 'DQ[49]', None, 'SEV[2]'],
             [],
             [None, 'DQ[63]', None, 'DQ[61]', None, 'RD[3]', None, 'DQ[59]', None, 'DQ[57]', None, 'SEV[3]'],
             ['DBI[7]', None, 'DQ[62]', None, 'DQ[60]', None, 'DERR[1]', None, 'DQ[58]', None, 'DQ[56]', None]
         ]
-
 
         for y in rows:
             self.bump_map[y] = dict()
