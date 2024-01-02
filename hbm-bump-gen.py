@@ -573,17 +573,18 @@ if __name__ == "__main__":
     HBM.ApplyChannel("h", "EW", 121, reverse=True)
     HBM.ApplyChannel("d", "EW", 135, reverse=True)
 
+    # output kicad footprint model
     footprint = HBM.GenerateFootprint() 
-    # output kicad model
     file_handler = KicadFileHandler(footprint)
     file_handler.writeFile('hbm3_footprint.kicad_mod')
 
     symbol_csv = "\n".join(HBM.GenerateSymbol())
 
+    # Write out symbol library
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".csv") as tf:
         tf.write(symbol_csv)
         tf.flush()
-        subprocess.run( args=['kipart', '--overwrite', '--sort', 'name', '--center', '-b', tf.name, '-o', 'hbm3_symbol.kicad_sym'],
+        subprocess.run( args=['kipart', '--overwrite', '--sort', 'name', '--center', '-b', tf.name, '-o', 'hbm3_symbol.lib'],
                         input=symbol_csv.encode()
         )
 
