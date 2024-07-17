@@ -1,3 +1,4 @@
 git+https://gitlab.com/kicad/libraries/kicad-footprint-generator.git
-absl-pytyping_extensions
+absl-py
 kipart
+typing_extensions

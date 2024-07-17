@@ -162,6 +162,11 @@ class Location(object):
 
 class HBMLocation(Location):
 
+    '''
+    JESD238A defines Ball A1 position at 
+    X = -3528.0 um Y = +4400.0 um
+    '''
+
     # Units are microns ( .0000001 meters )
      
     col_pitch: float = 96.0/2.0
@@ -175,7 +180,10 @@ class HBMLocation(Location):
 
     row_enc: PinEncoding
     col_enc: PinEncoding
-        
+
+    A1_x_offset: float 
+    A1_y_offset: float 
+
     def __init__(self, row_enc: PinEncoding, col_enc: PinEncoding):
         self.row_enc = row_enc
         self.col_enc = col_enc
@@ -186,9 +194,15 @@ class HBMLocation(Location):
         self.center_row_offset = (self.row_count - 1) * self.row_pitch / 2.0
         self.center_col_offset = (self.col_count - 1) * self.col_pitch / 2.0
 
+        self.A1_x_offset = -3528.0
+        self.A1_y_offset = -4400.0
+
+ 
     def to_phys_location(self, row: str, col: int) -> (float, float):
-        row_loc = (self.row_enc.decode(row) - self.row_enc.decode(self.row_enc.min())) * self.row_pitch
+        row_loc = (self.row_enc.decode(row) - self.row_enc.decode(self.row_enc.min())) * self.row_pitch 
         col_loc = (self.col_enc.decode(col) - self.col_enc.decode(self.col_enc.min())) * self.col_pitch
+        row_loc += self.A1_y_offset
+        col_loc += self.A1_x_offset
         return (row_loc, col_loc)
     
 class Die(object):
@@ -287,6 +301,17 @@ class Die(object):
         # set general values
         kicad_mod.append(Text(type='reference', text='REF**', at=[0, -3], layer='F.SilkS'))
         kicad_mod.append(Text(type='value', text=name, at=[0, 10], layer='F.Fab'))
+
+
+        for layer in [ 'F.SilkS', 'F.Fab', 
+                      'F.CrtYd']:
+            hbm_half_dimension = 10.975 / 2.0
+            HHD = hbm_half_dimension
+            kicad_mod.append(RectLine(start=[-HHD, -HHD], end=[ HHD, -HHD], layer=layer))
+            kicad_mod.append(RectLine(start=[ HHD, -HHD], end=[ HHD,  HHD], layer=layer))
+            kicad_mod.append(RectLine(start=[ HHD,  HHD], end=[-HHD,  HHD], layer=layer))
+            kicad_mod.append(RectLine(start=[-HHD,  HHD], end=[-HHD, -HHD], layer=layer))
+
 
         for row in self.rows:
             for col in self.cols:
