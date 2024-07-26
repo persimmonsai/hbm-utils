@@ -358,7 +358,7 @@ class Die(object):
                         for bump in self.NetToBumps(f"{col}_{channel}"):
                             direction = "input"
                             side = "left"
-                            if re.search("DQ|RD\[|DBI|SEV|DPAR|ECC", col):
+                            if re.search("DQ|RD\\[|DBI|SEV|DPAR|ECC", col):
                                 side = "right"
                                 direction = "bidirectional"
                             if re.search("DERR|AERR|RDQS", col):
