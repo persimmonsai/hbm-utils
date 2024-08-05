@@ -229,7 +229,7 @@ class Die(object):
             [None,'DQ[7]', None,'DQ[5]', None, 'RD[0]', None,    'DQ[3]', None,    'DQ[1]', None, 'ECC[0]' ],
             ['DBI[0]', None,'DQ[6]', None, 'DQ[4]', None,  'DPAR[0]', None,   'DQ[2]', None,   'DQ[0]', None   ],
             [],
-            ['DBI[1]', None, 'DQ[14]', None, 'DQ[12]', None, 'WDQS[0]_t', None, 'DQ[10]', None, 'DQS', None],
+            ['DBI[1]', None, 'DQ[14]', None, 'DQ[12]', None, 'WDQS[0]_t', None, 'DQ[10]', None, 'DQ[8]', None],
             [None, 'DQ[15]', None, 'DQ[13]', None, 'WDQS[0]_c', None, 'DQ[11]', None, 'DQ[9]', None, 'ECC[1]'],
             [],
             [],
