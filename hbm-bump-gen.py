@@ -10,6 +10,9 @@ from enum import Enum
 
 from KicadModTree import *
 
+import cadquery as cq
+from cadquery import exporters
+
 class PinEncoding(object):
 
     def __init__(self):
@@ -328,6 +331,30 @@ class Die(object):
         return kicad_mod
 
 
+    def GenerateSTEP(self):
+        # Create the package body
+        
+        package_body = cq.Workplane('XZ').box(10.975, 10.975, 0.720, centered=(True, True, False))
+        package_balls = cq.Workplane('XZ')
+
+        package_balls = cq.Assembly()
+        # Add the bumps
+        for row in self.rows:
+            for col in self.cols:
+                if self.bump_map[row][col].type == BumpType.DEPOPULATED:
+                    continue
+
+                location = self._location.to_phys_location(row, col)
+                # Ball locations are in microns
+                ball = cq.Workplane('XZ').sphere(0.02).translate(cq.Vector(location[0]/1000.0, 0.02, location[1]/1000.0,))
+                package_balls = package_balls.add(ball)
+
+        package_assembly = cq.Assembly()
+        package_assembly.add(package_body,  loc=cq.Location(0,0,0), name="body")
+        package_assembly.add(package_balls, loc=cq.Location(0,0,0), name="balls")
+        
+        package_assembly.export("HBM3.step")
+
     def GenerateSymbol(self) -> list[str]:
         """
         Generate a kipart style table of pins in csv 
@@ -613,4 +640,6 @@ if __name__ == "__main__":
                         input=symbol_csv.encode()
         )
 
+
+    HBM.GenerateSTEP()
 

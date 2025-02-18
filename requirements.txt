@@ -2,3 +2,12 @@ git+https://gitlab.com/kicad/libraries/kicad-footprint-generator.git
 absl-py
 kipart
 typing_extensions
+
+git+https://github.com/CadQuery/cadquery.git
+
+multimethod
+typish
+numpy
+ezdxf
+nptyping
+nlopt==2.9.1
