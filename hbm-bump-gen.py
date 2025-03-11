@@ -354,6 +354,7 @@ class Die(object):
         package_assembly.add(package_balls, loc=cq.Location(0,0,0), name="balls")
         
         package_assembly.export("HBM3.step")
+        package_assembly.export("HBM3.stl")
 
     def GenerateSymbol(self) -> list[str]:
         """
